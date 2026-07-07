@@ -24,8 +24,6 @@ class CarState(CarStateBase, CarStateExt):
     self.summon_prev = False
     self.cruise_override = False
     self.cruise_enabled_prev = False
-    self.fsd14_error_logged = False
-    self.suspected_fsd14 = False
 
     self.hands_on_level = 0
     self.prev_acc_state = 0
@@ -141,29 +139,15 @@ class CarState(CarStateBase, CarStateExt):
     ret.stockAeb = cp_ap_party.vl["DAS_control"]["DAS_aebEvent"] == 1
 
     # LKAS
-    # On FSD 14+, ANGLE_CONTROL behavior changed to allow user winddown while actuating.
-    # FSD switched from using ANGLE_CONTROL to LANE_KEEP_ASSIST to likely keep the old steering override disengage logic.
-    # LKAS switched from LANE_KEEP_ASSIST to ANGLE_CONTROL to likely allow overriding LKAS events smoothly
-    lkas_ctrl_type = get_steer_ctrl_type(self.CP.flags, 2)
-    ret.stockLkas = cp_ap_party.vl["DAS_steeringControl"]["DAS_steeringControlType"] == lkas_ctrl_type  # LANE_KEEP_ASSIST
+    steer_control_type = int(cp_ap_party.vl["DAS_steeringControl"]["DAS_steeringControlType"])
+    if self.CP.flags & TeslaFlags.LEGACY_DAS_STEERING:
+      steer_control_type >>= 1  # legacy firmware uses a 2-bit field, one bit up from the 3-bit signal
+    ret.stockLkas = steer_control_type == 2  # LANE_KEEP_ASSIST
 
     # Stock Autosteer should be disengaged (includes FSD)
     # TODO: find for TESLA_MODEL_X and HW2.5 vehicles
     if not (self.CP.flags & TeslaFlags.MISSING_DAS_SETTINGS):
       ret.invalidLkasSetting = cp_ap_party.vl["DAS_status"]["DAS_autopilotState"] not in (0, 1, 2) # DISABLED, UNAVAILABLE, AVAILABLE
-
-      # Because we don't have FSD 14 detection outside of a set of FW, we should check if this FW is accidentally missing from FSD_14_FW
-      # 1. If in Autosteer or FSD, already caught by invalidLkasSetting
-      # 2. If in TACC and DAS ever sends ANGLE_CONTROL (1), we can infer it's trying to do LKAS on FSD 14+
-      angle_control = cp_ap_party.vl["DAS_steeringControl"]["DAS_steeringControlType"] == 1  # ANGLE_CONTROL
-      if not ret.invalidLkasSetting and angle_control and not self.CP.flags & TeslaFlags.FSD_14:
-        self.suspected_fsd14 = True
-
-      if self.suspected_fsd14:
-        ret.invalidLkasSetting = True
-        if not self.fsd14_error_logged:
-          carlog.error("FSD 14 detected, but FW not in FSD_14_FW set")
-          self.fsd14_error_logged = True
 
     # Buttons # ToDo: add Gap adjust button
 
