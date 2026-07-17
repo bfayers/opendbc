@@ -175,7 +175,7 @@ class CoopSteeringCarController:
 
     if not lat_active or not angle_coop_enabled:
       self.reset_override_state(apply_angle)
-      return CoopSteeringDataSP(apply_angle, lat_active)
+      return CoopSteeringDataSP(apply_angle, lat_active, control_type)
 
     self.debug_angle_desired_limited = apply_angle #! debug
 
