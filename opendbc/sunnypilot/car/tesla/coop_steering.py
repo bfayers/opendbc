@@ -38,7 +38,7 @@ STEER_OVERRIDE_DELTA_GAIN_LIMIT_CENTERING = CoopSteeringCarControllerParams.ANGL
 
 
 CoopSteeringDataSP = namedtuple("CoopSteeringDataSP",
-                                ["steeringAngleDeg", "lat_active"])
+                                ["steeringAngleDeg", "lat_active", "control_type"])
 
 def get_steer_from_lat_accel(lat_accel, vEgo: float, VM: VehicleModel):
   """Calculate the maximum steering angle based on lateral acceleration."""
@@ -168,6 +168,7 @@ class CoopSteeringCarController:
 
   def update(self, apply_angle, lat_active, CP_SP: structs.CarParamsSP, CS: structs.CarState, VM: VehicleModel) -> CoopSteeringDataSP:
     angle_coop_enabled = CP_SP.flags & TeslaFlagsSP.COOP_STEERING.value
+    control_type = 2 if angle_coop_enabled else 1
 
     # avoid sudden rotation on engagement
     apply_angle = self.resume_steer_desired_rate_limit(lat_active, apply_angle)
@@ -188,4 +189,4 @@ class CoopSteeringCarController:
     sat_error = apply_angle - self.coop_apply_angle_sat_last
     self.unwind_override_angle_progressive(sat_error)
 
-    return CoopSteeringDataSP(self.coop_apply_angle_sat_last, lat_active)
+    return CoopSteeringDataSP(self.coop_apply_angle_sat_last, lat_active, control_type)
