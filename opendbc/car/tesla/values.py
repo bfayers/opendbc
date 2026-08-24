@@ -154,12 +154,17 @@ class CarControllerParams:
 class TeslaSafetyFlags(IntFlag):
   LONG_CONTROL = 1
   LEGACY_DAS_STEERING = 2
+  HW4_GEN2 = 4
 
 
 class TeslaFlags(IntFlag):
   LONG_CONTROL = 1
   LEGACY_DAS_STEERING = 2
   MISSING_DAS_SETTINGS = 4
+  # 2026+ Model Y (Juniper): DAS_status moved from 0x39b to 0x399 and UI_warning (0x311) is gone
+  HW4_GEN2 = 8
+  # blinkers and the seatbelt buckle are only on the VEHICLE bus, which needs its CAN lines tapped
+  HW4_GEN2_VEHICLE_BUS = 16
 
 
 DBC = CAR.create_dbc_map()
