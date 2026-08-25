@@ -418,6 +418,12 @@ static safety_config tesla_init(uint16_t param) {
     TESLA_UI_WARNING_RX_CHECK
   };
 
+  static RxCheck tesla_model3_y_vehicle_bus_rx_checks[] = {
+    TESLA_COMMON_RX_CHECKS
+    TESLA_UI_WARNING_RX_CHECK
+    TESLA_VEHICLE_BUS_ADDR_CHECK
+  };
+
   static RxCheck tesla_hw4_gen2_rx_checks[] = {
     TESLA_COMMON_RX_CHECKS
   };
