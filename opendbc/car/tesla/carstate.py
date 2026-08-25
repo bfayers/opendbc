@@ -170,14 +170,6 @@ class CarState(CarStateBase, CarStateExt):
       # 1. If in Autosteer or FSD, already caught by invalidLkasSetting
       # 2. If in TACC and DAS ever sends ANGLE_CONTROL (1), we can infer it's trying to do LKAS on FSD 14+
       angle_control = cp_ap_party.vl["DAS_steeringControl"]["DAS_steeringControlType"] == 1  # ANGLE_CONTROL
-      if not ret.invalidLkasSetting and angle_control and not self.CP.flags & TeslaFlags.FSD_14:
-        self.suspected_fsd14 = True
-
-      if self.suspected_fsd14:
-        ret.invalidLkasSetting = True
-        if not self.fsd14_error_logged:
-          carlog.error("FSD 14 detected, but FW not in FSD_14_FW set")
-          self.fsd14_error_logged = True
 
     # Buttons # ToDo: add Gap adjust button
 
