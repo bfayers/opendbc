@@ -34,6 +34,13 @@ class TeslaCarDocsHW4(CarDocs):
   car_parts: CarParts = field(default_factory=CarParts.common([CarHarness.tesla_b]))
   footnotes: list[Enum] = field(default_factory=lambda: [Footnote.HW_TYPE, Footnote.SETUP])
 
+
+@dataclass
+class TeslaCarDocsHW4Gen2(CarDocs):
+  package: str = "All"
+  car_parts: CarParts = field(default_factory=CarParts.common([CarHarness.tesla_c]))
+  footnotes: list[Enum] = field(default_factory=lambda: [Footnote.HW_TYPE, Footnote.SETUP])
+
 @dataclass
 class TeslaCarHW4ModelSXDocs(TeslaCarDocsHW4):
   support_type: SupportType = SupportType.COMMUNITY
@@ -59,6 +66,7 @@ class CAR(Platforms):
     [
       TeslaCarDocsHW3("Tesla Model Y (with HW3) 2020-23"),
       TeslaCarDocsHW4("Tesla Model Y (with HW4) 2024-25"),
+      TeslaCarDocsHW4Gen2("Tesla Model Y (with HW4) 2026"),
     ],
     CarSpecs(mass=2072., wheelbase=2.890, steerRatio=12.0),
     {Bus.party: 'tesla_model3_party', Bus.radar: 'tesla_radar_continental_generated', Bus.adas: 'tesla_model3_vehicle'},
@@ -153,12 +161,17 @@ class CarControllerParams:
 class TeslaSafetyFlags(IntFlag):
   LONG_CONTROL = 1
   LEGACY_DAS_STEERING = 2
+  HW4_GEN2 = 4
 
 
 class TeslaFlags(IntFlag):
   LONG_CONTROL = 1
   LEGACY_DAS_STEERING = 2
   MISSING_DAS_SETTINGS = 4
+  # 2026+ Model Y (Juniper): DAS_status moved from 0x39b to 0x399 and UI_warning (0x311) is gone
+  HW4_GEN2 = 8
+  # blinkers and the seatbelt buckle are only on the VEHICLE bus, which needs its CAN lines tapped
+  HW4_GEN2_VEHICLE_BUS = 16
 
 
 DBC = CAR.create_dbc_map()
