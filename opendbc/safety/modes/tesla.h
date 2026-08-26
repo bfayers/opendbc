@@ -55,8 +55,8 @@ static uint8_t tesla_get_counter(const CANPacket_t *msg) {
   } else if (msg->addr == 0x488U) {
     // Signal: DAS_steeringControlCounter
     cnt = msg->data[2] & 0x0FU;
-  } else if ((msg->addr == 0x257U) || (msg->addr == 0x145U) || (msg->addr == 0x286U) || (msg->addr == 0x311U)) {
-    // Signal: DI_speedCounter, ESP_statusCounter, DI_locStatusCounter, UI_warningCounter
+  } else if ((msg->addr == 0x257U) || (msg->addr == 0x118U) || (msg->addr == 0x145U) || (msg->addr == 0x286U) || (msg->addr == 0x311U)) {
+    // Signal: DI_speedCounter, DI_systemStatusCounter, ESP_statusCounter, DI_locStatusCounter, UI_warningCounter
     cnt = msg->data[1] & 0x0FU;
   } else if (msg->addr == 0x155U) {
     // Signal: ESP_wheelRotationCounter
@@ -77,8 +77,8 @@ static int _tesla_get_checksum_byte(const int addr) {
   } else if (addr == 0x488) {
     // Signal: DAS_steeringControlChecksum
     checksum_byte = 3;
-  } else if ((addr == 0x257) || (addr == 0x145) || (addr == 0x286) || (addr == 0x311)) {
-    // Signal: DI_speedChecksum, ESP_statusChecksum, DI_locStatusChecksum, UI_warningChecksum
+  } else if ((addr == 0x257) || (addr == 0x118) || (addr == 0x145) || (addr == 0x286) || (addr == 0x311)) {
+    // Signal: DI_speedChecksum, DI_systemStatusChecksum, ESP_statusChecksum, DI_locStatusChecksum, UI_warningChecksum
     checksum_byte = 0;
   } else {
   }
@@ -435,14 +435,10 @@ static safety_config tesla_init(uint16_t param) {
     SET_TX_MSGS(TESLA_M3_Y_TX_MSGS, ret);
   }
 
-  if (tesla_has_vehicle_bus) {
-    SET_RX_CHECKS(tesla_model3_y_vehicle_bus_rx_checks, ret);
-  } else {
-    SET_RX_CHECKS(tesla_model3_y_rx_checks, ret);
-  }
-
   if (tesla_hw4_gen2) {
     SET_RX_CHECKS(tesla_hw4_gen2_rx_checks, ret);
+  } else if (tesla_has_vehicle_bus) {
+    SET_RX_CHECKS(tesla_model3_y_vehicle_bus_rx_checks, ret);
   } else {
     SET_RX_CHECKS(tesla_model3_y_rx_checks, ret);
   }
