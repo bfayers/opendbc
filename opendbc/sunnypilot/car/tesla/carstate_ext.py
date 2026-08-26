@@ -9,7 +9,7 @@ from enum import StrEnum
 from opendbc.car import Bus, create_button_events, structs
 from opendbc.can.parser import CANParser
 from opendbc.car.common.conversions import Conversions as CV
-from opendbc.car.tesla.values import DBC, CANBUS
+from opendbc.car.tesla.values import DBC, CANBUS, TeslaFlags
 from opendbc.sunnypilot.car.tesla.values import TeslaFlagsSP
 
 ButtonType = structs.CarState.ButtonEvent.Type
@@ -44,15 +44,18 @@ class CarStateExt:
 
     cp_ap_party = can_parsers[Bus.ap_party]
 
-    speed_units = self.can_define.dv["DI_state"]["DI_speedUnits"].get(int(cp_party.vl["DI_state"]["DI_speedUnits"]), None)
-    speed_limit = cp_ap_party.vl["DAS_status"]["DAS_fusedSpeedLimit"]
-    if self.can_define.dv["DAS_status"]["DAS_fusedSpeedLimit"].get(int(speed_limit), None) in ["NONE", "UNKNOWN_SNA"]:
-      ret_sp.speedLimit = 0
-    else:
-      if speed_units == "KPH":
-        ret_sp.speedLimit = speed_limit * CV.KPH_TO_MS
-      elif speed_units == "MPH":
-        ret_sp.speedLimit = speed_limit * CV.MPH_TO_MS
+    # DAS_status (0x39b) has DAS_fusedSpeedLimit on HW3/HW4, but doesn't exist on HW4_GEN2
+    # (replaced by DAS_statusGen2 at 0x399 which has no speed limit signals)
+    if not (self.CP.flags & TeslaFlags.HW4_GEN2):
+      speed_units = self.can_define.dv["DI_state"]["DI_speedUnits"].get(int(cp_party.vl["DI_state"]["DI_speedUnits"]), None)
+      speed_limit = cp_ap_party.vl["DAS_status"]["DAS_fusedSpeedLimit"]
+      if self.can_define.dv["DAS_status"]["DAS_fusedSpeedLimit"].get(int(speed_limit), None) in ["NONE", "UNKNOWN_SNA"]:
+        ret_sp.speedLimit = 0
+      else:
+        if speed_units == "KPH":
+          ret_sp.speedLimit = speed_limit * CV.KPH_TO_MS
+        elif speed_units == "MPH":
+          ret_sp.speedLimit = speed_limit * CV.MPH_TO_MS
 
   @staticmethod
   def get_parser(CP: structs.CarParams, CP_SP: structs.CarParamsSP) -> dict[StrEnum, CANParser]:
