@@ -120,19 +120,35 @@ class CarState(CarStateBase, CarStateExt):
     # Gear
     ret.gearShifter = GEAR_MAP[self.can_define.dv["DI_systemStatus"]["DI_gear"].get(int(cp_party.vl["DI_systemStatus"]["DI_gear"]), "DI_GEAR_INVALID")]
 
-    # Doors
-    ret.doorOpen = cp_party.vl["UI_warning"]["anyDoorOpen"] == 1
+    # HW4 gen2 doesn't send UI_warning, and moved DAS_status from 0x39b to 0x399
+    if self.CP.flags & TeslaFlags.HW4_GEN2:
+      # Doors
+      ret.doorOpen = cp_party.vl["VehicleStatus"]["allDoorsClosed"] == 0
 
-    # Blinkers
-    ret.leftBlinker = cp_party.vl["UI_warning"]["leftBlinkerBlinking"] in (1, 2)
-    ret.rightBlinker = cp_party.vl["UI_warning"]["rightBlinkerBlinking"] in (1, 2)
+      # Blindspot
+      ret.leftBlindspot = cp_ap_party.vl["DAS_statusGen2"]["DAS_blindSpotRearLeft"] != 0
+      ret.rightBlindspot = cp_ap_party.vl["DAS_statusGen2"]["DAS_blindSpotRearRight"] != 0
 
-    # Seatbelt
-    ret.seatbeltUnlatched = cp_party.vl["UI_warning"]["buckleStatus"] != 1
+      # Blinkers and seatbelt, only available with the VEHICLE bus tapped
+      if self.CP.flags & TeslaFlags.HW4_GEN2_VEHICLE_BUS:
+        cp_vehicle = can_parsers[Bus.adas]
+        ret.leftBlinker = cp_vehicle.vl["VCFRONT_lighting"]["VCFRONT_indicatorLeftRequest"] != 0
+        ret.rightBlinker = cp_vehicle.vl["VCFRONT_lighting"]["VCFRONT_indicatorRightRequest"] != 0
+        ret.seatbeltUnlatched = cp_vehicle.vl["SeatBeltStatus"]["driverBuckleStatus"] != 1
+    else:
+      # Doors
+      ret.doorOpen = cp_party.vl["UI_warning"]["anyDoorOpen"] == 1
 
-    # Blindspot
-    ret.leftBlindspot = cp_ap_party.vl["DAS_status"]["DAS_blindSpotRearLeft"] != 0
-    ret.rightBlindspot = cp_ap_party.vl["DAS_status"]["DAS_blindSpotRearRight"] != 0
+      # Blinkers
+      ret.leftBlinker = cp_party.vl["UI_warning"]["leftBlinkerBlinking"] in (1, 2)
+      ret.rightBlinker = cp_party.vl["UI_warning"]["rightBlinkerBlinking"] in (1, 2)
+
+      # Seatbelt
+      ret.seatbeltUnlatched = cp_party.vl["UI_warning"]["buckleStatus"] != 1
+
+      # Blindspot
+      ret.leftBlindspot = cp_ap_party.vl["DAS_status"]["DAS_blindSpotRearLeft"] != 0
+      ret.rightBlindspot = cp_ap_party.vl["DAS_status"]["DAS_blindSpotRearRight"] != 0
 
     # AEB
     ret.stockAeb = cp_ap_party.vl["DAS_control"]["DAS_aebEvent"] == 1
@@ -146,7 +162,14 @@ class CarState(CarStateBase, CarStateExt):
     # Stock Autosteer should be disengaged (includes FSD)
     # TODO: find for TESLA_MODEL_X and HW2.5 vehicles
     if not (self.CP.flags & TeslaFlags.MISSING_DAS_SETTINGS):
-      ret.invalidLkasSetting = cp_ap_party.vl["DAS_status"]["DAS_autopilotState"] not in (0, 1, 2) # DISABLED, UNAVAILABLE, AVAILABLE
+      # HW4 gen2 sends DAS_settings on the party bus instead of the autopilot party bus
+      cp_das_settings = cp_party if self.CP.flags & TeslaFlags.HW4_GEN2 else cp_ap_party
+      ret.invalidLkasSetting = cp_das_settings.vl["DAS_settings"]["DAS_autosteerEnabled"] != 0
+
+      # Because we don't have FSD 14 detection outside of a set of FW, we should check if this FW is accidentally missing from FSD_14_FW
+      # 1. If in Autosteer or FSD, already caught by invalidLkasSetting
+      # 2. If in TACC and DAS ever sends ANGLE_CONTROL (1), we can infer it's trying to do LKAS on FSD 14+
+      angle_control = cp_ap_party.vl["DAS_steeringControl"]["DAS_steeringControlType"] == 1  # ANGLE_CONTROL
 
     # Buttons # ToDo: add Gap adjust button
 
@@ -159,8 +182,13 @@ class CarState(CarStateBase, CarStateExt):
 
   @staticmethod
   def get_can_parsers(CP, CP_SP):
-    return {
+    parsers = {
       Bus.party: CANParser(DBC[CP.carFingerprint][Bus.party], [], CANBUS.party),
       Bus.ap_party: CANParser(DBC[CP.carFingerprint][Bus.party], [], CANBUS.autopilot_party),
       **CarStateExt.get_parser(CP, CP_SP),
     }
+
+    if CP.flags & TeslaFlags.HW4_GEN2_VEHICLE_BUS:
+      parsers[Bus.adas] = CANParser(DBC[CP.carFingerprint][Bus.adas], [], CANBUS.vehicle)
+
+    return parsers
